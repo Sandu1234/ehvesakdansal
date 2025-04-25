@@ -1,11 +1,9 @@
 import React from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import FormPage from './FormPage';
 import DashboardPage from './DashboardPage';
 
 function App() {
-  const location = useLocation();
-
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#8CC63F', width: '100vw', overflowX: 'hidden' }}>
       {/* NavBar */}
@@ -42,12 +40,6 @@ const navBar = {
 const navLeft = {
   display: 'flex',
   alignItems: 'center'
-};
-
-const navTitle = {
-  color: '#fff',
-  fontSize: '18px',
-  fontWeight: 'bold'
 };
 
 const navRight = {
