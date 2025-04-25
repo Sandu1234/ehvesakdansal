@@ -72,7 +72,7 @@ const FormPage = () => {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Full Name"
+            placeholder="Name"
             required
             style={inputStyle}
           />
