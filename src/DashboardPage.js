@@ -2,6 +2,10 @@
 import React, { useEffect, useState } from 'react';
 import { db } from './firebase';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable'; // <-- this line important!
+
 
 const PROVINCES = [
   "Central", "Eastern", "Northern", "Southern",
@@ -13,6 +17,8 @@ function DashboardPage() {
   const [filteredUsers, setFilteredUsers] = useState([]);
   const [filter, setFilter] = useState('');
   const [subFilterValue, setSubFilterValue] = useState('');
+  const [downloadProvince, setDownloadProvince] = useState('');
+  const [showDownloadDropdown, setShowDownloadDropdown] = useState(false);
 
   useEffect(() => {
     const q = query(collection(db, 'users'), orderBy('created', 'desc'));
@@ -50,23 +56,56 @@ function DashboardPage() {
     setFilteredUsers(result);
   }, [filter, subFilterValue, users]);
 
-  // Collect unique areas from users
   const uniqueAreas = [...new Set(users.map(user => user.area).filter(Boolean))];
 
+  const handleDownload = () => {
+    if (!downloadProvince) return;
+  
+    const doc = new jsPDF();
+    const now = new Date();
+    const formattedDate = now.toLocaleString('en-GB', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+  
+    doc.setFontSize(16);
+    doc.text(`User Details - ${downloadProvince} Province`, 20, 20);
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${formattedDate}`, 20, 28);
+  
+    const data = users.filter(user => user.province === downloadProvince);
+  
+    const tableColumn = ["#", "Name", "Contact", "Area"];
+    const tableRows = [];
+  
+    data.forEach((user, index) => {
+      const userData = [
+        index + 1,
+        user.name || "N/A",
+        user.contact || "N/A",
+        user.area || "N/A"
+      ];
+      tableRows.push(userData);
+    });
+  
+    autoTable(doc, {     // <-- THIS
+      head: [tableColumn],
+      body: tableRows,
+      startY: 35,
+      theme: 'grid',
+      headStyles: { fillColor: [0, 100, 0] },
+      margin: { top: 30 }
+    });
+  
+    doc.save(`Province_${downloadProvince}_Users.pdf`);
+  };
   return (
     <div style={{ backgroundColor: '#8CC63F', minHeight: '100vh', padding: '20px', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
         <h2 style={{ color: '#fff', fontSize: '24px' }}>Real-Time Dashboard</h2>
+
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <select onChange={(e) => setFilter(e.target.value)} value={filter}  style={{
-  padding: '8px 12px',
-  borderRadius: '8px',
-  fontSize: '14px',
-  backgroundColor: '#ffffff',
-  border: '1px solid #ccc',
-  boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
-  cursor: 'pointer'
-}}>
+          <select onChange={(e) => setFilter(e.target.value)} value={filter} style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '14px', backgroundColor: '#ffffff', border: '1px solid #ccc', boxShadow: '0 2px 6px rgba(0,0,0,0.1)', cursor: 'pointer' }}>
             <option value="">-- Select Filter --</option>
             <option value="province">Filter by Province</option>
             <option value="area">Filter by Area</option>
@@ -75,18 +114,41 @@ function DashboardPage() {
             <option value="presence">Has Contact</option>
           </select>
 
-          {(filter === 'province') && (
+          {filter === 'province' && (
             <select onChange={(e) => setSubFilterValue(e.target.value)} value={subFilterValue} style={{ padding: '6px', borderRadius: '6px', fontSize: '14px' }}>
               <option value="">-- Select Province --</option>
               {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           )}
 
-          {(filter === 'area') && (
+          {filter === 'area' && (
             <select onChange={(e) => setSubFilterValue(e.target.value)} value={subFilterValue} style={{ padding: '6px', borderRadius: '6px', fontSize: '14px' }}>
               <option value="">-- Select Area --</option>
               {uniqueAreas.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
+          )}
+
+          <button
+            style={{ padding: '8px 14px', borderRadius: '8px', backgroundColor: '#fff', fontWeight: 'light', cursor: 'pointer', border: '1px solid #ccc' }}
+            onClick={() => setShowDownloadDropdown(!showDownloadDropdown)}
+          >
+            Download Province-wise Details
+          </button>
+
+          {showDownloadDropdown && (
+            <select onChange={(e) => setDownloadProvince(e.target.value)} value={downloadProvince} style={{ padding: '6px', borderRadius: '6px', fontSize: '14px' }}>
+              <option value="">-- Select Province to Download --</option>
+              {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          )}
+
+          {downloadProvince && (
+            <button
+              style={{ padding: '8px 12px', backgroundColor: '#006400', color: '#fff', borderRadius: '6px', fontWeight: '500', cursor: 'pointer' }}
+              onClick={handleDownload}
+            >
+              Download PDF
+            </button>
           )}
         </div>
       </div>
