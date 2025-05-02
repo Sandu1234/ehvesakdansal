@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { db } from './firebase';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import autoTable from 'jspdf-autotable';
+// Excel export libraries
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 const PROVINCES = [
   "Central", "Eastern", "Northern", "Southern",
@@ -56,43 +56,40 @@ function DashboardPage() {
   const uniqueAreas = [...new Set(users.map(user => user.area).filter(Boolean))];
 
   const handleDownload = (province) => {
-    const doc = new jsPDF();
     const now = new Date();
     const formattedDate = now.toLocaleString('en-GB', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
+    }).replace(/[/: ]/g, '_');
 
-    doc.setFontSize(16);
-    doc.text(`User Details - ${province} Province`, 20, 20);
-    doc.setFontSize(10);
-    doc.text(`Generated on: ${formattedDate}`, 20, 28);
+    // Prepare data
+    const data = users
+      .filter(user => user.province === province)
+      .map((user, index) => ({
+        '#': index + 1,
+        Name: user.name || 'N/A',
+        Contact: user.contact || 'N/A',
+        Area: user.area || 'N/A'
+      }));
 
-    const data = users.filter(user => user.province === province);
+    // Create worksheet and workbook
+    const worksheet = XLSX.utils.json_to_sheet(data);
 
-    const tableColumn = ["#", "Name", "Contact", "Area"];
-    const tableRows = [];
+    // Set column widths (wch = width in characters)
+    worksheet['!cols'] = [
+      { wch: 5 },   // "#"
+      { wch: 35 },  // Name
+      { wch: 25 },  // Contact
+      { wch: 25 }   // Area
+    ];
 
-    data.forEach((user, index) => {
-      const userData = [
-        index + 1,
-        user.name || "N/A",
-        user.contact || "N/A",
-        user.area || "N/A"
-      ];
-      tableRows.push(userData);
-    });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
 
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: 35,
-      theme: 'grid',
-      headStyles: { fillColor: [0, 100, 0] },
-      margin: { top: 30 }
-    });
-
-    doc.save(`Province_${province}_Users.pdf`);
+    // Write workbook and trigger download
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    saveAs(blob, `Province_${province}_Users_${formattedDate}.xlsx`);
     setShowProvinceDropdown(false);
   };
 
@@ -195,7 +192,7 @@ const subFilterStyle = {
   padding: '6px',
   borderRadius: '6px',
   fontSize: '14px',
-  border: 'none',           // remove button borders
+  border: 'none',
   backgroundColor: 'transparent',
   textAlign: 'left',
   cursor: 'pointer'
@@ -205,7 +202,7 @@ const downloadButton = {
   padding: '8px 14px',
   borderRadius: '8px',
   backgroundColor: '#fff',
-  fontWeight: 'normal',     // changed to normal
+  fontWeight: 'normal',
   cursor: 'pointer',
   border: '1px solid #ccc',
   display: 'flex',
@@ -220,7 +217,6 @@ const provinceListStyle = {
   backgroundColor: '#fff',
   padding: '8px',
   borderRadius: '8px',
-  /* border removed */
   boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
   display: 'flex',
   flexDirection: 'column',
