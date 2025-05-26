@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { db } from './firebase';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
-// Excel export libraries
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 
@@ -62,31 +61,31 @@ function DashboardPage() {
       hour: '2-digit', minute: '2-digit', second: '2-digit'
     }).replace(/[/: ]/g, '_');
 
-    // Prepare data
     const data = users
       .filter(user => user.province === province)
       .map((user, index) => ({
         '#': index + 1,
         Name: user.name || 'N/A',
         Contact: user.contact || 'N/A',
-        Area: user.area || 'N/A'
+        Area: user.area || 'N/A',
+        Created: user.created
+          ? new Date(user.created.seconds * 1000).toLocaleString('en-GB')
+          : 'N/A'
       }));
 
-    // Create worksheet and workbook
     const worksheet = XLSX.utils.json_to_sheet(data);
 
-    // Set column widths (wch = width in characters)
     worksheet['!cols'] = [
-      { wch: 5 },   // "#"
-      { wch: 35 },  // Name
-      { wch: 25 },  // Contact
-      { wch: 25 }   // Area
+      { wch: 5 },
+      { wch: 35 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 30 }  // Created Date
     ];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
 
-    // Write workbook and trigger download
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
     const blob = new Blob([excelBuffer], { type: 'application/octet-stream' });
     saveAs(blob, `Province_${province}_Users_${formattedDate}.xlsx`);
@@ -98,7 +97,6 @@ function DashboardPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
         <h2 style={{ color: '#fff', fontSize: '24px' }}>Real-Time Dashboard</h2>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Filters */}
           <select onChange={(e) => setFilter(e.target.value)} value={filter} style={filterStyle}>
             <option value="">-- Select Filter --</option>
             <option value="province">Filter by Province</option>
@@ -122,7 +120,6 @@ function DashboardPage() {
             </select>
           )}
 
-          {/* Download Province-wise Details */}
           <div style={{ position: 'relative', display: 'inline-block' }}>
             <button
               style={downloadButton}
@@ -148,7 +145,6 @@ function DashboardPage() {
         </div>
       </div>
 
-      {/* Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {filteredUsers.map((user, index) => (
           <div key={user.id} style={cardStyle}>
@@ -157,6 +153,14 @@ function DashboardPage() {
             <GridRow label="Contact" value={user.contact} isPhone />
             <GridRow label="Province" value={user.province} />
             <GridRow label="Area" value={user.area} />
+            <GridRow
+              label="Created"
+              value={
+                user.created
+                  ? new Date(user.created.seconds * 1000).toLocaleString()
+                  : 'N/A'
+              }
+            />
           </div>
         ))}
       </div>
